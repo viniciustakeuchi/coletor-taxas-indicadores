@@ -11,6 +11,9 @@ on:
       desde:
         description: "Coletar desde (AAAA-MM-DD, opcional)"
         required: false
+      tesouro_url_api:
+        description: "URL alternativa da API do Tesouro (para testar as camadas de contingência)"
+        required: false
 
 jobs:
   coletar:
@@ -42,7 +45,9 @@ jobs:
       - name: Coleta
         env:
           DESDE: ${{ inputs.desde }}
+          URL_ALTERNATIVA: ${{ inputs.tesouro_url_api }}
         run: |
+          if [ -n "$URL_ALTERNATIVA" ]; then export TESOURO_URL_API="$URL_ALTERNATIVA"; fi
           set -o pipefail
           coletor coletar ${DESDE:+--desde "$DESDE"} 2> coleta.log | tee resumo.txt
       - name: Avisos e erros da coleta
@@ -52,6 +57,8 @@ jobs:
       - name: Resumo da execução
         if: always()
         run: |
+          coletor relatorio
+          coletor premissas 2>/dev/null
           {
             echo "## Coleta de $(date +%F)"
             echo '```'
