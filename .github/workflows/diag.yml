@@ -1,0 +1,14 @@
+name: diag
+on:
+  push:
+    branches: [diagnostico]
+jobs:
+  d:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with: {python-version: "3.12"}
+      - run: pip install playwright && python -m playwright install --with-deps chromium >/dev/null
+      - run: python diag.py
+      - run: curl -sS -m 30 -o /dev/null -w "%{http_code}\n" -A "Mozilla/5.0" "https://www.tesourodireto.com.br/json/br/com/b3/tesourodireto/service/api/treasurybondsinfo.json" || true
