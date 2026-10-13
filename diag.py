@@ -1,33 +1,20 @@
-import asyncio, json
-from playwright.async_api import async_playwright
-UA="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0 Safari/537.36"
-async def main():
-    async with async_playwright() as pw:
-        b = await pw.chromium.launch(headless=True)
-        ctx = await b.new_context(locale="pt-BR", user_agent=UA)
-        p = await ctx.new_page()
-        corpos = {}
-        async def on(r):
-            if "/o/rentabilidade" in r.url or "/o/c/" in r.url:
-                try:
-                    corpos[r.url] = await r.text()
-                except Exception as e:
-                    corpos[r.url] = repr(e)
-        p.on("response", on)
-        url = "https://www.tesourodireto.com.br/produtos/dados-sobre-titulos/rendimento-dos-titulos"
-        r = await p.goto(url, wait_until="domcontentloaded", timeout=45000)
-        await p.wait_for_timeout(10000)
-        # clicar em abas de resgate, se houver
-        for texto in ["Resgatar", "resgatar", "Vender"]:
-            try:
-                await p.get_by_text(texto, exact=False).first.click(timeout=3000)
-                await p.wait_for_timeout(4000)
-                print("CLICOU", texto)
-                break
-            except Exception as e:
-                pass
-        for u, c in corpos.items():
-            print("=====", u, len(c))
-            print(c[:3500])
-        await b.close()
-asyncio.run(main())
+import json, urllib.request
+def get(u):
+    req = urllib.request.Request("https://www.tesourodireto.com.br/"+u, headers={"User-Agent": "Mozilla/5.0"})
+    with urllib.request.urlopen(req, timeout=30) as r:
+        print(u, r.status, r.headers.get("content-type"))
+        return json.load(r)
+inv = get("o/rentabilidade/investir"); res = get("o/rentabilidade/resgatar")
+for nome, d in (("investir", inv), ("resgatar", res)):
+    print("==", nome, type(d).__name__, list(d) if isinstance(d, dict) else len(d))
+    for k, v in d.items():
+        print("  chave", k, type(v).__name__, len(v) if hasattr(v, "__len__") else v)
+        if isinstance(v, list):
+            for it in v:
+                print("   ", it.get("treasuryBondName"), "|", it.get("maturityDate"), "|", it.get("investmentProfitabilityIndexerName"), "|", it.get("redemptionProfitabilityFeeIndexerName"), "|", it.get("unitaryInvestmentValue"), "|", it.get("unitaryRedemptionValue"), "|", it.get("lastMarketPricingDate"))
+            if v: print("   CAMPOS", sorted(v[0]))
+ni = {(i["treasuryBondName"], i["maturityDate"]) for v in inv.values() if isinstance(v, list) for i in v}
+nr = {(i["treasuryBondName"], i["maturityDate"]) for v in res.values() if isinstance(v, list) for i in v}
+print("so em investir:", ni - nr)
+json.dump(res, open("resgatar.json","w"), ensure_ascii=False)
+json.dump(inv, open("investir.json","w"), ensure_ascii=False)
