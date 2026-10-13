@@ -79,58 +79,70 @@ coletor relatorio --dias 30              # taxa de sucesso e tempo por fonte
 coletor premissas                        # CDI, Selic e IPCA 12m em % a.a.
 ```
 
-Saída de uma coleta:
+Saída de uma coleta real (GitHub Actions, 13/10/2026):
 
 ```text
-cdi          sucesso      64 ms  5 gravados de 5 lidos, 0 rejeitados, 1 tentativa(s), via api
-selic        sucesso      61 ms  5 gravados de 5 lidos, 0 rejeitados, 1 tentativa(s), via api
-selic_meta   sucesso      57 ms  1 gravados de 1 lidos, 0 rejeitados, 1 tentativa(s), via api
-ipca         sucesso      58 ms  13 gravados de 13 lidos, 0 rejeitados, 1 tentativa(s), via api
-tesouro      sucesso     635 ms  4 gravados de 5 lidos, 1 rejeitados, 1 tentativa(s), via site
+cdi          sucesso     814 ms  5 gravados de 5 lidos, 0 rejeitados, 1 tentativa(s), via api
+selic        sucesso    1078 ms  5 gravados de 5 lidos, 0 rejeitados, 1 tentativa(s), via api
+selic_meta   sucesso     855 ms  11 gravados de 11 lidos, 0 rejeitados, 1 tentativa(s), via api
+ipca         sucesso     917 ms  13 gravados de 13 lidos, 0 rejeitados, 1 tentativa(s), via api
+tesouro      sucesso     434 ms  58 gravados de 58 lidos, 0 rejeitados, 1 tentativa(s), via api
 ```
 
-Rodando de novo logo em seguida, todas as fontes mostram `0 gravados`: nada mudou, nada foi
-reescrito.
+Rodando de novo sobre o mesmo banco, todas as fontes mostram `0 gravados`: nada mudou, nada
+foi reescrito.
 
-`coletor premissas` devolve as taxas no formato que a API de renda fixa aceita na query string:
+`coletor premissas` devolve as taxas no formato que a API de renda fixa aceita na query
+string. Valores reais da mesma data:
 
 ```json
 {
-  "cdi": {"valor": "14.90", "data_referencia": "2025-10-07"},
-  "selic": {"valor": "15.00", "data_referencia": "2025-10-07"},
-  "ipca": {"valor": "5.17", "data_referencia": "2025-09-01"}
+  "cdi": {"valor": "13.65", "data_referencia": "2026-10-09"},
+  "selic": {"valor": "13.75", "data_referencia": "2026-10-13"},
+  "ipca": {"valor": "4.58", "data_referencia": "2026-09-01"}
 }
 ```
 
+O CDI de referência é o de 09/10 porque 12/10 foi feriado e o Banco Central publica o dia
+corrente só à noite.
+
 ## Métricas
 
-Toda execução grava uma linha em `execucoes` com duração, tentativas, estratégia usada
-(site ou CSV), registros lidos, rejeitados e gravados. `coletor relatorio` agrega por fonte:
+Toda execução grava uma linha em `execucoes` com duração, tentativas, camada usada,
+registros lidos, rejeitados e gravados. `coletor relatorio` agrega por fonte (taxa de
+sucesso, tempo médio, p95 e volume).
 
-```text
-fonte              execuções  sucesso     média       p95  gravados
-cdi                        2     100%      66ms      68ms         5
-ipca                       2     100%      60ms      62ms        13
-selic                      2     100%      62ms      63ms         5
-selic_meta                 2     100%      60ms      63ms         1
-tesouro                    2     100%     652ms     669ms         4
-```
+Primeiras execuções reais, no workflow [Coleta diária](.github/workflows/coleta.yml):
 
-O workflow [Coleta diária](.github/workflows/coleta.yml) roda o coletor contra as fontes
-reais de segunda a sexta, publica esse relatório no resumo da execução e guarda os dados
-em CSV como artefato.
+| Execução | cdi | selic | selic_meta | ipca | tesouro |
+| --- | --- | --- | --- | --- | --- |
+| 1ª, código original | 1,0 s | 0,2 s | 0,7 s | 0,7 s | 151 s, via CSV (API antiga respondeu 410) |
+| 3ª, API nova | 0,8 s | 1,1 s | 0,9 s | 0,9 s | 0,4 s, via API, 58 títulos |
+| 4ª, API nova | 2,6 s | 0,6 s | 2,6 s | 2,6 s | 0,4 s, via API, 58 títulos |
+| 5ª, contingência forçada | 1,0 s | 31,9 s, timeout na 1ª tentativa e sucesso na 2ª | 1,0 s | 0,5 s | 2,8 s, via navegador, 37 títulos |
+
+A 2ª execução, ainda com o código original, repetiu o resultado da 1ª e mostrou nos logs
+estruturados que o endpoint antigo do Tesouro tinha sido desativado. Nas cinco execuções
+foram 25 coletas de fonte e 25 sucessos. Na 5ª, a URL da API foi trocada de propósito
+pela antiga, para provar a camada do Playwright contra o site real; no mesmo dia, um
+timeout real do Banco Central foi absorvido pelo retry.
+
+O workflow roda de segunda a sexta às 19h30, publica o relatório no resumo da execução e
+guarda os dados coletados em CSV como artefato. Ele aceita uma URL alternativa da API do
+Tesouro para repetir o teste de contingência.
 
 ## Testes e qualidade
 
 ```bash
-pytest --cov=coletor     # 81 testes, cobertura de 99%, nenhum acessa a internet
+pytest --cov=coletor     # 96 testes, cobertura de 99%, nenhum acessa a internet
 ruff check . && ruff format --check .
 mypy coletor tests
 ```
 
 - **Parsers** são testados com respostas no formato de cada fonte, salvas em `tests/fixtures`
   (JSON do SGS, JSON do site do Tesouro e CSV do Tesouro Transparente), incluindo itens
-  malformados.
+  malformados. O JSON do Tesouro é um trecho real da API, com títulos fora de venda,
+  Renda+, Educa+ e Tesouro Reserva.
 - **Playwright** roda de verdade: um servidor HTTP local imita a página do Tesouro, que
   carrega os dados por `fetch`, e o teste confirma que o navegador captura o JSON, bloqueia
   imagens e CSS e estoura o timeout quando o JSON não chega.
@@ -182,6 +194,8 @@ mypy coletor tests
   Títulos novos podem ter nomes diferentes entre o site e o CSV.
 - O CSV histórico traz todos os títulos desde o início da série e é baixado inteiro a cada
   uso.
+- Pela camada do navegador, a página carrega só os títulos abertos para compra (37 de 58);
+  os que estão só para resgate voltam na coleta seguinte pela API ou pelo CSV.
 
 ### Próximos passos
 
