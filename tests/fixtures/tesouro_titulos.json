@@ -1,0 +1,87 @@
+{
+  "responseStatus": 200,
+  "responseStatusText": "success",
+  "statusInfo": "OK",
+  "response": {
+    "BdTxTp": {"cd": 0},
+    "TrsrBondMkt": {
+      "opngDtTm": "2025-10-07T09:25:00",
+      "clsgDtTm": "2025-10-08T05:00:00",
+      "qtnDtTm": "2025-10-07T15:28:00.43",
+      "stsCd": 4,
+      "sts": "Fechado"
+    },
+    "TrsrBdTradgList": [
+      {
+        "TrsrBd": {
+          "cd": 172,
+          "nm": "Tesouro Prefixado 2028",
+          "mtrtyDt": "2028-01-01T00:00:00",
+          "minInvstmtAmt": 36.71,
+          "untrInvstmtVal": 734.29,
+          "anulInvstmtRate": 13.42,
+          "anulRedRate": 13.54,
+          "untrRedVal": 732.15,
+          "isinCd": "BRSTNCLTN848",
+          "FinIndxs": {"cd": 19, "nm": "PREFIXADO"}
+        },
+        "TrsrBdType": {"cd": 1, "nm": "PREFIXADO"},
+        "SelicCode": "760199"
+      },
+      {
+        "TrsrBd": {
+          "cd": 175,
+          "nm": "Tesouro Selic 2029",
+          "mtrtyDt": "2029-03-01T00:00:00",
+          "minInvstmtAmt": 171.03,
+          "untrInvstmtVal": 17103.12,
+          "anulInvstmtRate": 0.0598,
+          "anulRedRate": 0.0698,
+          "untrRedVal": 17097.40,
+          "isinCd": "BRSTNCLF1RU6",
+          "FinIndxs": {"cd": 17, "nm": "SELIC"}
+        },
+        "TrsrBdType": {"cd": 3, "nm": "POS-FIXADO"},
+        "SelicCode": "210100"
+      },
+      {
+        "TrsrBd": {
+          "cd": 178,
+          "nm": "Tesouro IPCA+ 2035",
+          "mtrtyDt": "2035-05-15T00:00:00",
+          "minInvstmtAmt": 38.92,
+          "untrInvstmtVal": 2594.88,
+          "anulInvstmtRate": 7.61,
+          "anulRedRate": 7.73,
+          "untrRedVal": 2578.31,
+          "isinCd": "BRSTNCNTB0O7",
+          "FinIndxs": {"cd": 22, "nm": "IPCA"}
+        },
+        "TrsrBdType": {"cd": 2, "nm": "INDEXADOS AO IPCA"},
+        "SelicCode": "760198"
+      },
+      {
+        "TrsrBd": {
+          "cd": 150,
+          "nm": "Tesouro IPCA+ com Juros Semestrais 2026",
+          "mtrtyDt": "2026-08-15T00:00:00",
+          "minInvstmtAmt": 0,
+          "untrInvstmtVal": 0,
+          "anulInvstmtRate": 0,
+          "anulRedRate": 9.85,
+          "untrRedVal": 4512.07,
+          "isinCd": "BRSTNCNTB4U6",
+          "FinIndxs": {"cd": 22, "nm": "IPCA"}
+        },
+        "TrsrBdType": {"cd": 2, "nm": "INDEXADOS AO IPCA"},
+        "SelicCode": "760199"
+      },
+      {
+        "TrsrBd": {
+          "cd": 999,
+          "nm": "Título sem vencimento"
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>Preços e taxas | Tesouro Direto (cópia de teste)</title>
+  <link rel="stylesheet" href="/estilo-que-nao-existe.css">
+</head>
+<body>
+  <h1>Preços e taxas dos títulos públicos</h1>
+  <img src="/banner-que-nao-existe.png" alt="">
+  <table id="titulos"><tbody></tbody></table>
+  <script>
+    // Igual ao site real: a tabela é preenchida por um fetch depois que a página carrega.
+    setTimeout(async () => {
+      const r = await fetch("/json/br/com/b3/tesourodireto/service/api/treasurybondsinfo.json");
+      const dados = await r.json();
+      const corpo = document.querySelector("#titulos tbody");
+      for (const item of dados.response.TrsrBdTradgList) {
+        const tr = document.createElement("tr");
+        tr.textContent = item.TrsrBd.nm;
+        corpo.appendChild(tr);
+      }
+    }, 50);
+  </script>
+</body>
+</html>
