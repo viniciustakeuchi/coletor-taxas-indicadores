@@ -1,0 +1,77 @@
+# Coleta real nas fontes públicas, de segunda a sexta às 19h30 de Brasília.
+# Cada execução sobe um Postgres limpo, coleta, publica o resumo da execução
+# e guarda os dados coletados em CSV como artefato do workflow.
+name: Coleta diária
+
+on:
+  schedule:
+    - cron: "30 22 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      desde:
+        description: "Coletar desde (AAAA-MM-DD, opcional)"
+        required: false
+
+jobs:
+  coletar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: coletor
+          POSTGRES_PASSWORD: coletor
+          POSTGRES_DB: coletor
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U coletor"
+          --health-interval 2s --health-timeout 3s --health-retries 15
+    env:
+      DATABASE_URL: postgresql+asyncpg://coletor:coletor@localhost:5432/coletor
+      PGPASSWORD: coletor
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install .
+      - run: python -m playwright install --with-deps chromium
+      - run: alembic upgrade head
+      - name: Coleta
+        env:
+          DESDE: ${{ inputs.desde }}
+        run: |
+          set -o pipefail
+          coletor coletar ${DESDE:+--desde "$DESDE"} 2> coleta.log | tee resumo.txt
+      - name: Resumo da execução
+        if: always()
+        run: |
+          {
+            echo "## Coleta de $(date +%F)"
+            echo '```'
+            cat resumo.txt || true
+            echo
+            coletor relatorio || true
+            echo '```'
+            echo "### Premissas para a API de renda fixa"
+            echo '```json'
+            coletor premissas 2>/dev/null || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Exporta os dados em CSV
+        if: always()
+        run: |
+          mkdir -p dados
+          for tabela in indicadores taxas_tesouro execucoes; do
+            psql -h localhost -U coletor coletor \
+              -c "\copy (select * from $tabela) to 'dados/$tabela.csv' csv header"
+          done
+          cp coleta.log dados/ || true
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: dados-coletados
+          path: dados/
+          retention-days: 30
