@@ -7,7 +7,12 @@ import httpx
 from coletor.config import Settings
 from coletor.fontes.base import Fonte
 from coletor.fontes.sgs import SERIES, FonteSGS
-from coletor.fontes.tesouro import FonteTesouro, baixar_csv_tesouro, capturar_json_tesouro
+from coletor.fontes.tesouro import (
+    FonteTesouro,
+    baixar_csv_tesouro,
+    baixar_json_tesouro,
+    capturar_json_tesouro,
+)
 from coletor.retry import PoliticaRetry
 
 FONTES_DISPONIVEIS = [*SERIES, "tesouro"]
@@ -43,6 +48,7 @@ def fonte_tesouro(
     cliente: httpx.AsyncClient, config: Settings, somente_csv: bool = False
 ) -> FonteTesouro:
     return FonteTesouro(
+        baixar_json=partial(baixar_json_tesouro, cliente, config.tesouro_url_api),
         capturar_json=partial(
             capturar_json_tesouro, config.tesouro_url_pagina, config.timeout_segundos
         ),

@@ -69,22 +69,22 @@ class SiteFalso:
 
     @property
     def url_pagina(self) -> str:
-        return f"{self.url}/titulos/precos-e-taxas.htm"
+        return f"{self.url}/produtos/dados-sobre-titulos/rendimento-dos-titulos"
 
 
 @pytest.fixture
 def site_tesouro() -> Iterator[SiteFalso]:
-    """Servidor HTTP local que imita a página de preços e taxas, sem acessar a internet."""
+    """Servidor HTTP local que imita a página de rendimento dos títulos, sem internet."""
     pagina = fixture_texto("pagina_tesouro.html").encode()
-    dados = fixture_texto("tesouro_titulos.json").encode()
+    dados = fixture_texto("tesouro_rentabilidade.json").encode()
     site = SiteFalso(url="")
 
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:  # noqa: N802
             site.requisicoes.append(self.path)
-            if self.path.startswith("/titulos/precos-e-taxas.htm"):
+            if self.path.startswith("/produtos/dados-sobre-titulos/rendimento-dos-titulos"):
                 self._responder(200, "text/html; charset=utf-8", pagina)
-            elif self.path.endswith("treasurybondsinfo.json") and site.servir_json:
+            elif self.path.startswith("/o/rentabilidade/") and site.servir_json:
                 self._responder(site.status_json, "application/json", dados)
             else:
                 self._responder(404, "text/plain", b"nao encontrado")

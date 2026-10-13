@@ -16,7 +16,10 @@ class Settings(BaseSettings):
 
     # Fontes
     sgs_url_base: str = "https://api.bcb.gov.br/dados/serie"
-    tesouro_url_pagina: str = "https://www.tesourodireto.com.br/titulos/precos-e-taxas.htm"
+    tesouro_url_api: str = "https://www.tesourodireto.com.br/o/rentabilidade/resgatar"
+    tesouro_url_pagina: str = (
+        "https://www.tesourodireto.com.br/produtos/dados-sobre-titulos/rendimento-dos-titulos"
+    )
     tesouro_url_csv: str = (
         "https://www.tesourotransparente.gov.br/ckan/dataset/"
         "df56aa42-484a-4a59-8184-7676580c81e3/resource/"

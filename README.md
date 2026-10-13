@@ -20,10 +20,11 @@ atualizadas com dados oficiais (`coletor premissas`).
 flowchart LR
     A[APScheduler<br/>seg a sex, 19h] --> O[Orquestrador<br/>asyncio.gather]
     O --> S[Fonte SGS<br/>httpx async]
-    O --> T[Fonte Tesouro<br/>Playwright]
+    O --> T[Fonte Tesouro<br/>3 camadas]
     S -->|retry + backoff| BCB[(API SGS<br/>Banco Central)]
-    T -->|retry + backoff| TD[(Site do<br/>Tesouro Direto)]
-    T -.->|contingência| TT[(CSV Tesouro<br/>Transparente)]
+    T -->|1. httpx| TD[(JSON do site do<br/>Tesouro Direto)]
+    T -.->|2. Playwright| PG[(Página do<br/>Tesouro Direto)]
+    T -.->|3. contingência| TT[(CSV Tesouro<br/>Transparente)]
     S --> V[Parsers<br/>validação e rejeição]
     T --> V
     V --> C[Carga idempotente<br/>upsert por chave natural]
@@ -38,7 +39,7 @@ flowchart LR
 | `selic` | API SGS, série 11 | Selic diária (% ao dia) |
 | `selic_meta` | API SGS, série 432 | Meta Selic do Copom (% ao ano) |
 | `ipca` | API SGS, série 433 | IPCA mensal (% ao mês) |
-| `tesouro` | Playwright no site; CSV de dados abertos como contingência | Taxa e PU de compra e venda de cada título |
+| `tesouro` | JSON do site; Playwright na página e CSV de dados abertos como contingência | Taxa e PU de compra e venda de cada título |
 
 Cada fonte roda isolada e em paralelo: se o site do Tesouro cair, as séries do Banco Central
 continuam sendo gravadas, e a falha fica registrada com o erro.
@@ -133,6 +134,8 @@ mypy coletor tests
 - **Playwright** roda de verdade: um servidor HTTP local imita a página do Tesouro, que
   carrega os dados por `fetch`, e o teste confirma que o navegador captura o JSON, bloqueia
   imagens e CSS e estoura o timeout quando o JSON não chega.
+- **Camadas do Tesouro** são testadas uma a uma: API no ar, API desativada (HTTP 410),
+  formato novo na API, navegador fora do ar e queda completa até o CSV.
 - **Retry** é testado com `httpx.MockTransport` simulando 503, 429, timeouts e HTML de
   manutenção no lugar de JSON.
 - **Carga** roda em SQLite nos testes rápidos e no PostgreSQL no CI, que também aplica,
@@ -140,15 +143,20 @@ mypy coletor tests
 
 ## Decisões técnicas
 
-- **Capturar o JSON em vez de raspar o HTML.** O site do Tesouro monta a tabela com um
-  `fetch` para um JSON interno e fica atrás de proteção anti-bot que costuma recusar
-  clientes HTTP simples. O Playwright abre a página como um navegador real e intercepta essa resposta
-  (`page.expect_response`), o que dá dados estruturados sem depender de seletores CSS que
-  quebram a cada redesign. Imagens, fontes e CSS são bloqueados para a página carregar mais
-  rápido.
-- **Contingência com dados abertos.** Se o site falhar depois de todas as tentativas, a fonte
-  baixa o CSV do Tesouro Transparente. Ele tem um dia de atraso, mas mantém a série sem
-  buracos, e a execução registra qual estratégia foi usada.
+- **Três camadas para o Tesouro, porque o site muda.** Durante o desenvolvimento, o site do
+  Tesouro Direto trocou de plataforma: o endpoint JSON antigo passou a responder
+  `410 Gone`. A primeira coleta real só não falhou porque caiu no CSV de contingência, e os
+  logs estruturados mostraram onde estava o problema. Hoje a fonte tenta, nesta ordem:
+  1. **API**: o JSON público que a página de rentabilidade usa, lido com httpx (rápido).
+  2. **Navegador**: se a API mudar de endereço ou passar a recusar clientes HTTP, o
+     Playwright abre a página e intercepta (`page.expect_response`) qualquer resposta de
+     rentabilidade que ela carregue. Não depende de seletores CSS, e imagens, fontes e CSS
+     são bloqueados para a página carregar mais rápido.
+  3. **CSV** do Tesouro Transparente, com um dia de atraso, mas que mantém a série sem
+     buracos.
+
+  Cada execução registra qual camada foi usada, então uma degradação aparece no
+  `coletor relatorio` antes de virar falha.
 - **Backoff exponencial com jitter completo.** A espera é aleatória entre zero e
   `min(30s, 2s × 2^n)`. Só erros transitórios são repetidos (rede, 429 e 5xx); um 400 ou um
   formato inesperado falha na hora, porque repetir não resolve.
@@ -167,8 +175,9 @@ mypy coletor tests
 
 ### Limitações conhecidas
 
-- O JSON do site do Tesouro é interno e pode mudar sem aviso; por isso existe a contingência
-  pelo CSV e o parser falha alto em vez de gravar lixo.
+- O JSON do site do Tesouro não é uma API documentada e pode mudar sem aviso, como já
+  mudou; por isso existem as camadas de contingência e o parser falha alto em vez de gravar
+  lixo.
 - O nome do título vem sem o ano do vencimento (`Tesouro IPCA+`), que fica em coluna própria.
   Títulos novos podem ter nomes diferentes entre o site e o CSV.
 - O CSV histórico traz todos os títulos desde o início da série e é baixado inteiro a cada

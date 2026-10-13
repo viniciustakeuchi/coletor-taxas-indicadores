@@ -12,7 +12,7 @@ pytestmark = pytest.mark.navegador
 async def test_captura_o_json_que_a_pagina_carrega(site_tesouro: SiteFalso) -> None:
     payload = await capturar_json_tesouro(site_tesouro.url_pagina, timeout_s=15)
     cotacoes, _ = interpretar_json_tesouro(payload)
-    assert len(cotacoes) == 4
+    assert len(cotacoes) == 9
 
 
 async def test_bloqueia_imagens_e_css(site_tesouro: SiteFalso) -> None:
