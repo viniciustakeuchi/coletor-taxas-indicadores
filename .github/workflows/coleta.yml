@@ -47,7 +47,8 @@ jobs:
           coletor coletar ${DESDE:+--desde "$DESDE"} 2> coleta.log | tee resumo.txt
       - name: Avisos e erros da coleta
         if: always()
-        run: grep -E '"nivel": "(warning|error)"' coleta.log | cut -c1-600 || echo "Nenhum aviso"
+        run: |
+          grep -E '"nivel": "(warning|error)"' coleta.log | cut -c1-600 || echo "Nenhum aviso"
       - name: Resumo da execução
         if: always()
         run: |
